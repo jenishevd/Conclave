@@ -1,60 +1,55 @@
 import java.util.*;
-import java.util.*;
 
 public class Conclave {
-    private List<Cardinal> cardinals;
-    private Cardinal leader1;
-    private Cardinal leader2;
-
-
+    private final List<Cardinal> cardinals;
+    private final Cardinal leader1;
+    private final Cardinal leader2;
+    private final int MAX_ROUNDS = 6;
 
     public Conclave(List<Cardinal> cardinals) {
         this.cardinals = cardinals;
 
-        this.leader1 = pickLeader();
+        // Pick 2 distinct leaders randomly
+        this.leader1 = pickRandomLeader();
+        Cardinal tempLeader;
         do {
-            this.leader2 = pickLeader();
-        } while (leader2 == leader1);
+            tempLeader = pickRandomLeader();
+        } while (tempLeader == leader1);
+        this.leader2 = tempLeader;
 
         System.out.println("Leading candidates:");
-        System.out.println("Leader 1: " + leader1.getName());
-        System.out.println("Leader 2: " + leader2.getName());
-
-
+        System.out.println("- " + leader1.getName());
+        System.out.println("- " + leader2.getName());
+        System.out.println();
     }
 
-    private Cardinal pickLeader() {
-        Random rand = new Random();
-        return cardinals.get(rand.nextInt(cardinals.size()));
+    private Cardinal pickRandomLeader() {
+        return cardinals.get(new Random().nextInt(cardinals.size()));
     }
-
-
 
     public void startElection() {
         int round = 1;
-        while (true) {
+
+        while (round <= MAX_ROUNDS) {
             System.out.println("=== Round " + round + " ===");
 
-            // Все голосуют
+            // Step 1: Collect votes
+            Map<String, Integer> voteCount = new HashMap<>();
             for (Cardinal c : cardinals) {
-                c.decideVote(cardinals, leader1, leader2);
+                c.vote(cardinals, leader1, leader2, round, getCurrentFrontRunner(voteCount));
+                String votedFor = c.getVote();
+                voteCount.put(votedFor, voteCount.getOrDefault(votedFor, 0) + 1);
             }
 
-            // Подсчёт голосов
-            Map<String, Integer> votes = new HashMap<>();
-            for (Cardinal c : cardinals) {
-                votes.put(c.getVote(), votes.getOrDefault(c.getVote(), 0) + 1);
+            // Step 2: Show results
+            for (Map.Entry<String, Integer> entry : voteCount.entrySet()) {
+                System.out.printf("%-20s : %3d votes\n", entry.getKey(), entry.getValue());
             }
 
-            // Вывод результатов
-            for (Map.Entry<String, Integer> entry : votes.entrySet()) {
-                System.out.println(entry.getKey() + ": " + entry.getValue() + " votes");
-            }
-
-            // Проверка на победу
-            for (Map.Entry<String, Integer> entry : votes.entrySet()) {
+            // Step 3: Check for winner
+            for (Map.Entry<String, Integer> entry : voteCount.entrySet()) {
                 if (entry.getValue() >= Math.ceil(2.0 * cardinals.size() / 3)) {
-                    System.out.println("New Pope elected: " + entry.getKey());
+                    System.out.println("\n🎉 New Pope elected: " + entry.getKey() + " with " + entry.getValue() + " votes.");
                     return;
                 }
             }
@@ -62,5 +57,15 @@ public class Conclave {
             round++;
             System.out.println();
         }
+
+        System.out.println("❌ No Pope elected after " + MAX_ROUNDS + " rounds. The conclave is deadlocked.");
+    }
+
+    private String getCurrentFrontRunner(Map<String, Integer> voteCount) {
+        return voteCount.entrySet()
+                .stream()
+                .max(Comparator.comparingInt(Map.Entry::getValue))
+                .map(Map.Entry::getKey)
+                .orElse(leader1.getName());
     }
 }
